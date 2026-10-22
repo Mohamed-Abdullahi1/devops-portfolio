@@ -14,18 +14,45 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const siteUrl = "https://moabdullahi.uk";
+
+const siteTitle = "Mohamed Abdullahi | DevOps Engineer";
+
+const siteDescription =
+  "DevOps Engineer specialising in AWS, Kubernetes, Terraform, CI/CD and cloud infrastructure. Explore my projects, architecture decisions and technical write-ups.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+
   title: {
-    default: "Mohamed Abdullahi | DevOps Engineer",
+    default: siteTitle,
     template: "%s | Mohamed Abdullahi",
   },
-  description:
-    "DevOps Engineer specialising in AWS, Kubernetes, Terraform, CI/CD and cloud infrastructure. Explore my projects, architecture decisions and technical write-ups.",
+
+  description: siteDescription,
+
+  alternates: {
+    canonical: "/",
+  },
+
   openGraph: {
-    title: "Mohamed Abdullahi | DevOps Engineer",
-    description:
-      "Building reliable infrastructure with AWS, Kubernetes and infrastructure as code.",
+    title: siteTitle,
+    description: siteDescription,
+    url: siteUrl,
+    siteName: "Mohamed Abdullahi",
     type: "website",
+    locale: "en_GB",
+  },
+
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription,
+  },
+
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
@@ -36,7 +63,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="en-GB"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

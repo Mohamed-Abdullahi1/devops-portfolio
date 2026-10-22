@@ -34,6 +34,10 @@ const articles: Record<string, Article> = {
         type: "p",
         text: "The difficult part is not necessarily getting ArgoCD installed. It is deciding which system has authority over a resource after installation, and what happens when that authority needs to change.",
       },
+      {
+        type: "p",
+        text: "In my EKS platform project, I used Terraform to provision the AWS infrastructure and Helm to bootstrap ArgoCD. Once ArgoCD was running, I used the App-of-Apps pattern to reconcile platform components from Git. This established a clear separation between provisioning the underlying cluster and managing the Kubernetes workloads running inside it.",
+      },
 
       {
         type: "heading",
@@ -749,6 +753,55 @@ repo:example-org/example-repo:environment:production`,
       {
         type: "p",
         text: "The exact traffic-shifting and rollback behaviour depends on the ECS deployment controller and its configuration. Percentages alone do not guarantee a safe rollout.",
+      },
+
+      {
+        type: "heading",
+        text: "Testing rollback by deliberately breaking the application",
+      },
+      {
+        type: "p",
+        text: "I wanted to verify that the deployment system could recover from a failed release, rather than assume the rollback configuration would work.",
+      },
+      {
+        type: "p",
+        text: "To test this, I deliberately introduced a failure into the application's /healthz endpoint and deployed the broken revision through the pipeline.",
+      },
+      {
+        type: "p",
+        text: "The deployment configuration used a 10% canary traffic shift and a five-minute bake period. The Application Load Balancer's health checks detected the unhealthy application targets, causing the associated CloudWatch alarm to enter the ALARM state.",
+      },
+      {
+        type: "p",
+        text: "ECS responded by automatically rolling back the deployment to the previous healthy revision. This demonstrated that the deployment's failure-detection and recovery mechanisms were connected and functioning.",
+      },
+      {
+        type: "code",
+        language: "Rollback test",
+        text: `Deploy revision with broken /healthz
+                |
+                v
+ECS begins canary deployment
+                |
+                v
+ALB detects unhealthy targets
+                |
+                v
+CloudWatch alarm enters ALARM
+                |
+                v
+ECS triggers automatic rollback
+                |
+                v
+Previous healthy revision restored`,
+      },
+      {
+        type: "p",
+        text: "The experiment validated an important failure scenario: a replacement revision that could not satisfy the configured health checks. It did not prove that every application regression would be detected, particularly failures that leave /healthz responding successfully.",
+      },
+      {
+        type: "note",
+        text: "A rollback configuration is only a recovery mechanism on paper until it has been tested against a real failure.",
       },
 
       {
