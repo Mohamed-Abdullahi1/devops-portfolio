@@ -22,6 +22,10 @@ const siteDescription =
   "DevOps Engineer specialising in AWS, Kubernetes, Terraform, CI/CD and cloud infrastructure. Explore my projects, architecture decisions and technical write-ups.";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/icon.svg?v=2",
+    shortcut: "/icon.svg?v=2",
+  },
   metadataBase: new URL(siteUrl),
 
   title: {
