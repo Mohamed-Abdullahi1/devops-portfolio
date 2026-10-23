@@ -54,49 +54,57 @@ const projects = [
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-[1440px] px-6 sm:px-10 lg:px-16 xl:px-20">
-      {/* Navigation */}
-      <header className="flex min-h-24 flex-wrap items-center justify-between gap-6 border-b border-white/10 py-6">
-        <Link
-          href="/"
-          className="text-[15px] font-semibold tracking-[-0.035em] text-white"
-        >
-          Mohamed Abdullahi
-          <span className="ml-1 text-neutral-500">.</span>
-        </Link>
+     {/* Navigation */}
+<header className="flex min-h-24 flex-wrap items-center justify-between gap-6 border-b border-white/10 py-6">
+  <Link
+    href="/"
+    className="text-[15px] font-semibold tracking-[-0.035em] text-white"
+  >
+    Mohamed Abdullahi
+    <span className="ml-1 text-neutral-500">.</span>
+  </Link>
 
-        <nav
-          aria-label="Main navigation"
-          className="flex items-center gap-6 text-[13px] text-neutral-400 sm:gap-9"
-        >
-          <a
-            href="#projects"
-            className="transition-colors hover:text-white"
-          >
-            Projects
-          </a>
+  <nav
+    aria-label="Main navigation"
+    className="flex flex-wrap items-center gap-6 text-[13px] text-neutral-400 sm:gap-9"
+  >
+    <a
+      href="#projects"
+      className="transition-colors hover:text-white"
+    >
+      Projects
+    </a>
 
-          <a
-            href="#writeups"
-            className="transition-colors hover:text-white"
-          >
-            Writing
-          </a>
+    <a
+      href="#writeups"
+      className="transition-colors hover:text-white"
+    >
+      Writing
+    </a>
 
-          <a
-            href="#about"
-            className="transition-colors hover:text-white"
-          >
-            About
-          </a>
+    <a
+      href="#about"
+      className="transition-colors hover:text-white"
+    >
+      About
+    </a>
 
-          <a
-            href="#contact"
-            className="transition-colors hover:text-white"
-          >
-            Contact
-          </a>
-        </nav>
-      </header>
+    <a
+      href="#contact"
+      className="transition-colors hover:text-white"
+    >
+      Contact
+    </a>
+
+    <a
+      href="/Mohamed_Abdullahi_CV.pdf"
+      download="Mohamed_Abdullahi_CV.pdf"
+      className="inline-flex items-center gap-2 border border-white/20 px-4 py-2 font-medium text-white transition-colors hover:border-white/50 hover:bg-white/5"
+    >
+      Download CV ↗
+    </a>
+  </nav>
+</header>
 
       {/* Hero */}
       <section className="border-b border-white/10 pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pt-16">
