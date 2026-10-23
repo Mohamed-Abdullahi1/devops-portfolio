@@ -212,16 +212,14 @@ export default function Home() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-16 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           {projects.map((project, index) => {
             const featured = index === 0;
 
             return (
               <article
                 key={project.title}
-                className={`group min-w-0 ${
-                  featured ? "md:col-span-2" : ""
-                }`}
+                className="group min-w-0"
               >
                 <Link
                   href={project.href}
@@ -229,11 +227,7 @@ export default function Home() {
                   className="relative block overflow-hidden border border-white/10 bg-[#101010] transition-colors duration-300 hover:border-white/25"
                 >
                   <div
-                    className={`relative w-full ${
-                      featured
-                        ? "h-[280px] sm:h-[380px] lg:h-[500px]"
-                        : "h-[250px] sm:h-[300px] lg:h-[350px]"
-                    }`}
+                    className="relative h-[180px] w-full sm:h-[200px] lg:h-[220px]"
                   >
                     <Image
                       src={project.image}
@@ -245,7 +239,7 @@ export default function Home() {
                           ? "(max-width: 768px) 100vw, 1200px"
                           : "(max-width: 768px) 100vw, 600px"
                       }
-                      className="object-contain p-5 transition-transform duration-500 group-hover:scale-[1.025] motion-reduce:transform-none sm:p-10"
+                      className="object-contain p-3 transition-transform duration-500 group-hover:scale-[1.025] motion-reduce:transform-none sm:p-5"
                     />
                   </div>
 
