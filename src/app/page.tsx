@@ -99,8 +99,8 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="border-b border-white/10 pb-20 pt-20 sm:pb-24 sm:pt-24 lg:pt-28">
-        <div className="mb-9 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <section className="border-b border-white/10 pb-12 pt-12 sm:pb-14 sm:pt-14 lg:pt-16">
+        <div className="mb-7 flex flex-wrap items-center gap-x-5 gap-y-3">
           <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-neutral-400">
             DevOps Engineer
           </span>
@@ -119,13 +119,13 @@ export default function Home() {
           <span className="text-neutral-400">infrastructure.</span>
         </h1>
 
-        <p className="mt-9 max-w-[650px] text-base leading-[1.9] text-neutral-400 sm:text-[18px]">
+        <p className="mt-7 max-w-[650px] text-base leading-[1.9] text-neutral-400 sm:text-[18px]">
           I build and automate cloud infrastructure, with a focus on
           reliability, security and scalable systems.
         </p>
 
         {/* Social Links */}
-        <div className="mt-12 flex flex-wrap items-center gap-x-10 gap-y-6">
+        <div className="mt-8 flex flex-wrap items-center gap-x-10 gap-y-6">
           <a
             href="https://github.com/Mohamed-Abdullahi1"
             target="_blank"
@@ -141,7 +141,7 @@ export default function Home() {
           </a>
 
           <a
-            href="https://www.linkedin.com/"
+            href="https://www.linkedin.com/in/mohamed-abdullahi-28345231a"
             target="_blank"
             rel="noopener noreferrer"
             className="group inline-flex items-center gap-3 text-lg font-medium text-neutral-200 transition-colors hover:text-white"
@@ -169,7 +169,7 @@ export default function Home() {
 
         <a
           href="#projects"
-          className="mt-16 inline-flex items-center gap-2 text-xs text-neutral-500 transition-colors hover:text-white"
+          className="mt-10 inline-flex items-center gap-2 text-xs text-neutral-500 transition-colors hover:text-white"
         >
           Explore projects
           <ArrowDown size={14} />
@@ -179,7 +179,7 @@ export default function Home() {
       {/* Projects */}
       <section
         id="projects"
-        className="scroll-mt-12 border-b border-white/10 py-24 sm:py-28"
+        className="scroll-mt-12 border-b border-white/10 py-16 sm:py-20"
       >
         <div className="mb-14">
           <p className="mb-5 font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-500">
@@ -333,7 +333,7 @@ export default function Home() {
       {/* Write-ups */}
       <section
         id="writeups"
-        className="scroll-mt-12 border-b border-white/10 py-24 sm:py-28"
+        className="scroll-mt-12 border-b border-white/10 py-16 sm:py-20"
       >
         <div className="mb-14 flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
@@ -428,7 +428,7 @@ export default function Home() {
             </a>
 
             <a
-              href="https://www.linkedin.com/"
+              href="https://www.linkedin.com/in/mohamed-abdullahi-28345231a"
               target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-center gap-3 border-b border-neutral-400 pb-3 text-lg font-medium text-white transition-colors hover:border-white"
@@ -459,7 +459,7 @@ export default function Home() {
           </a>
 
           <a
-            href="https://www.linkedin.com/"
+            href="https://www.linkedin.com/in/mohamed-abdullahi-28345231a"
             target="_blank"
             rel="noopener noreferrer"
             className="transition-colors hover:text-white"
