@@ -108,7 +108,7 @@ export default function Home() {
 </header>
 
       {/* Hero */}
-      <section className="flex min-h-[calc(100svh-96px)] flex-col justify-center border-b border-white/10 py-12">
+      <section className="flex min-h-[calc(100svh-96px)] flex-col justify-center border-b border-white/10 pb-8 pt-4 lg:-translate-y-8">
         <div className="mb-7 flex flex-wrap items-center gap-x-5 gap-y-3">
           <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-neutral-400">
             DevOps Engineer
