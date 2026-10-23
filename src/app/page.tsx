@@ -438,7 +438,7 @@ export default function Home() {
 
                     <div className="flex flex-wrap items-center gap-8">
             <a
-              href="mailto:mohamedabdullahisgf@gmail.com"
+              href="mailto:mohamedabdullahisgf@gmail.co"
               className="group inline-flex items-center gap-3 border-b border-neutral-400 pb-3 text-lg font-medium text-white transition-colors hover:border-white"
             >
               Get in touch
