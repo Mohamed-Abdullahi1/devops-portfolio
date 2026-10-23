@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
+  FileDown,
   Mail,
   MapPin,
 } from "lucide-react";
@@ -163,7 +164,7 @@ export default function Home() {
           </a>
 
           <a
-            href="mailto:mohamedabdullahisgf@gmail.com"
+            href="mailto:mohamed@moabdullahi.uk"
             className="group inline-flex items-center gap-3 text-lg font-medium text-neutral-200 transition-colors hover:text-white"
           >
             <Mail size={24} strokeWidth={1.8} />
@@ -173,6 +174,18 @@ export default function Home() {
               className="text-neutral-500 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
             />
           </a>
+          <a
+          href="/Mohamed_Abdullahi_CV.pdf"
+          download="Mohamed_Abdullahi_CV.pdf"
+          className="group inline-flex items-center gap-3 text-lg font-medium text-neutral-200 transition-colors hover:text-white"
+        >
+          <FileDown size={24} strokeWidth={1.8} />
+          Download CV
+        <ArrowUpRight
+          size={17}
+          className="text-neutral-500 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+          />
+      </a>
         </div>
 
         <a
