@@ -16,7 +16,7 @@ const projects = [
     title: "ECS Blue/Green Deployment",
     category: "AWS / Deployment Engineering",
     description:
-      "A container deployment platform built on AWS ECS Fargate, with blue/green deployments, automated CI/CD and infrastructure managed through Terraform.",
+      "An AWS ECS Fargate deployment platform built with Terraform and automated CI/CD, featuring canary traffic shifting and automatic rollback, successfully verified through deliberate failure testing.",
     technologies: [
       "AWS ECS",
       "Terraform",
