@@ -450,499 +450,79 @@ helm status <release-name> \\
   "ecs-blue-green-deployments": {
     repo: "https://github.com/Mohamed-Abdullahi1/ecs-blue-green-platform",
     blocks: [
-      {
-        type: "p",
-        text: "A container starting successfully is not the same thing as a deployment succeeding. That distinction shaped my ECS blue/green project: a URL shortener running on AWS, surrounded by the infrastructure, pipeline and operational controls needed to release changes more safely.",
-      },
-      {
-        type: "p",
-        text: "The application gave me something concrete to deploy. The engineering work was in what happened around it: provisioning the environment with Terraform, building and scanning images, authenticating GitHub Actions with AWS, shifting traffic and deciding what should happen when a new version behaved badly.",
-      },
-      {
-        type: "p",
-        text: "The project became less about getting containers to run and more about understanding the systems responsible for delivering changes safely.",
-      },
-
-      {
-        type: "heading",
-        text: "Why an ordinary container update wasn't enough",
-      },
-      {
-        type: "p",
-        text: "The simplest deployment flow builds a new Docker image, pushes it to a registry and updates the running ECS service. ECS starts tasks using the replacement image and manages their lifecycle.",
-      },
-      {
-        type: "p",
-        text: "That is useful automation, but it does not tell you whether the new release is safe for real traffic.",
-      },
-      {
-        type: "p",
-        text: "An application can pass a health check while its core business operation is broken. For a URL shortener, a basic HTTP endpoint might respond normally while link creation or redirect resolution fails.",
-      },
-      {
-        type: "p",
-        text: "Health checks, application tests and production metrics answer different questions. None should automatically be treated as a substitute for the others.",
-      },
-      {
-        type: "p",
-        text: "I wanted the release process to recognise that difference. Instead of equating task readiness with success, the design needed a way to expose the replacement version to traffic, observe it and retain a path back to the previous version.",
-      },
-      {
-        type: "note",
-        text: "A successful deployment needs more evidence than a running container. It needs meaningful signals that the replacement version is behaving as expected.",
-      },
-
-      {
-        type: "heading",
-        text: "The architecture behind the release",
-      },
-      {
-        type: "p",
-        text: "Amazon ECS Fargate provides the container runtime. Rather than managing EC2 worker instances directly, the platform defines the container requirements and lets Fargate provide the underlying compute.",
-      },
-      {
-        type: "p",
-        text: "An Application Load Balancer provides the entry point and traffic-routing layer. Terraform defines the supporting AWS resources, while GitHub Actions connects source-code changes to the build and deployment workflow.",
-      },
-      {
-        type: "p",
-        text: "Amazon ECR stores the container images produced by the pipeline. IAM roles control which components can interact with AWS services.",
-      },
-      {
-        type: "code",
-        language: "Architecture overview",
-        text: `GitHub repository
-       |
-       v
-GitHub Actions ---- OIDC ---- AWS IAM / STS
-       |
-       v
-Build and scan container image
-       |
-       v
-Amazon ECR
-       |
-       v
-ECS Fargate deployment
-       |
-       v
-Application Load Balancer
-       |
-       +-- Existing application version
-       |
-       +-- Replacement application version`,
-      },
-      {
-        type: "p",
-        text: "The repository contains the fuller infrastructure implementation and architecture diagram.",
-      },
-      {
-        type: "p",
-        text: "The important architectural separation is between provisioning the platform, producing a deployable artefact and controlling how that artefact reaches users.",
-      },
-      {
-        type: "p",
-        text: "Each component has a different responsibility. Understanding those boundaries becomes particularly important when a deployment fails.",
-      },
-
-      {
-        type: "heading",
-        text: "Making infrastructure reproducible with Terraform",
-      },
-      {
-        type: "p",
-        text: "Using Terraform turned AWS configuration into something I could review and reproduce. Networking, IAM and ECS-related resources could be described in code instead of being assembled through a sequence of console clicks.",
-      },
-      {
-        type: "p",
-        text: "That matters for troubleshooting because a proposed infrastructure change becomes visible before it reaches AWS.",
-      },
-      {
-        type: "code",
-        language: "Bash",
-        text: `terraform fmt -check
-
-terraform validate
-
-terraform plan`,
-      },
-      {
-        type: "p",
-        text: "These commands serve different purposes. Formatting checks consistency, validation checks the structure of the configuration, and planning evaluates the changes Terraform expects to make.",
-      },
-      {
-        type: "p",
-        text: "None of these checks proves that the application will work after deployment.",
-      },
-      {
-        type: "p",
-        text: "A reliable delivery process needs to separate infrastructure correctness from application behaviour. Terraform can show that an ECS service or load balancer will be modified, but it cannot guarantee that the replacement application will handle requests correctly.",
-      },
-      {
-        type: "p",
-        text: "Infrastructure as code also made teardown part of the development process.",
-      },
-      {
-        type: "p",
-        text: "Fargate, load balancing, networking and other AWS services can generate costs even when a portfolio application receives little traffic. Repeatability is valuable partly because it allows the environment to be recreated without keeping every resource running indefinitely.",
-      },
-
-      {
-        type: "heading",
-        text: "Making the container artefact traceable",
-      },
-      {
-        type: "p",
-        text: "A deployment pipeline should make it possible to answer a deceptively simple question: exactly which image is running?",
-      },
-      {
-        type: "p",
-        text: "A mutable tag such as latest is convenient, but it is not a reliable historical record of a release. The same tag can point to different image contents over time.",
-      },
-      {
-        type: "p",
-        text: "Image digests provide content-addressed references. Commit-specific identifiers can also help connect source revisions to build outputs.",
-      },
-      {
-        type: "p",
-        text: "This becomes important during rollback. Reverting to a tag that has since moved may not restore the version you intended.",
-      },
-      {
-        type: "code",
-        language: "Bash",
-        text: `docker image inspect \\
-  --format='{{index .RepoDigests 0}}' \\
-  <image-reference>`,
-      },
-      {
-        type: "p",
-        text: "The command illustrates how to inspect a local image's repository digest when one is available.",
-      },
-      {
-        type: "p",
-        text: "The broader principle is to preserve traceability between the source revision, container image and deployed workload.",
-      },
-      {
-        type: "p",
-        text: "A pipeline that reports success without making the deployed artefact identifiable creates unnecessary uncertainty when investigating incidents.",
-      },
-
-      {
-        type: "heading",
-        text: "GitHub Actions without long-lived AWS keys",
-      },
-      {
-        type: "p",
-        text: "The CI/CD pipeline needed permission to interact with AWS. A traditional approach would involve storing an IAM user's access key ID and secret access key in GitHub repository secrets.",
-      },
-      {
-        type: "p",
-        text: "Instead, I used GitHub Actions with OIDC authentication.",
-      },
-      {
-        type: "p",
-        text: "This allows the workflow to request an identity token from GitHub and exchange it for temporary AWS credentials through Security Token Service, provided the IAM role's trust conditions are satisfied.",
-      },
-      {
-        type: "code",
-        language: "GitHub Actions YAML",
-        text: `permissions:
-  contents: read
-  id-token: write
-
-steps:
-  - name: Configure AWS credentials
-    uses: aws-actions/configure-aws-credentials@v4
-    with:
-      role-to-assume: \${{ secrets.AWS_ROLE_ARN }}
-      aws-region: eu-west-2`,
-      },
-      {
-        type: "p",
-        text: "This is an illustrative workflow fragment rather than a claim that the repository currently contains these exact lines.",
-      },
-      {
-        type: "p",
-        text: "The workflow permission allows GitHub to issue an OIDC token. AWS access still depends on the IAM trust policy and the permissions associated with the role.",
-      },
-      {
-        type: "p",
-        text: "That distinction became particularly important when I started debugging identity claims.",
-      },
-
-      {
-        type: "heading",
-        text: "The OIDC failure that forced me to look deeper",
-      },
-      {
-        type: "p",
-        text: "During the project, I encountered problems while investigating GitHub's OIDC identity claims.",
-      },
-      {
-        type: "p",
-        text: "The tempting response to an authentication failure is to keep changing IAM permissions or workflow configuration until the request succeeds.",
-      },
-      {
-        type: "p",
-        text: "But an OIDC failure can occur before AWS even evaluates the permissions the assumed role would grant.",
-      },
-      {
-        type: "p",
-        text: "The important detail is the identity GitHub presents.",
-      },
-      {
-        type: "p",
-        text: "An OIDC token contains claims describing its issuer, audience and execution context. AWS evaluates relevant claims against conditions in the IAM role's trust policy.",
-      },
-      {
-        type: "p",
-        text: "If the subject does not match the trusted repository, branch or environment context, STS can deny role assumption even when the workflow has permission to request an identity token.",
-      },
-      {
-        type: "code",
-        language: "Example OIDC subjects",
-        text: `repo:example-org/example-repo:ref:refs/heads/main
-
-repo:example-org/example-repo:environment:production`,
-      },
-      {
-        type: "p",
-        text: "The subject can change depending on the workflow context and GitHub's OIDC configuration.",
-      },
-      {
-        type: "p",
-        text: "Investigating the claims helped me understand that authentication is not a single checkbox.",
-      },
-      {
-        type: "p",
-        text: "GitHub must issue the expected identity. AWS must trust that identity. The resulting role must then have the appropriate permissions for the requested operation.",
-      },
-      {
-        type: "note",
-        text: "When role assumption fails, establish whether the problem is token issuance, trust-policy matching or AWS permissions. They are different failure points and require different fixes.",
-      },
-
-      {
-        type: "heading",
-        text: "Introducing traffic gradually",
-      },
-      {
-        type: "p",
-        text: "The deployment design used blue/green concepts with canary traffic shifting.",
-      },
-      {
-        type: "p",
-        text: "Rather than immediately directing every request to the replacement application version, a canary configuration can introduce the new version to a smaller percentage of traffic.",
-      },
-      {
-        type: "p",
-        text: "In the project design, the initial traffic shift was 10%, followed by a five-minute monitoring interval before continuing the rollout.",
-      },
-      {
-        type: "p",
-        text: "This provides an opportunity to observe the new version while the existing application continues serving most requests.",
-      },
-      {
-        type: "p",
-        text: "However, a monitoring window is only useful when meaningful signals are available.",
-      },
-      {
-        type: "p",
-        text: "Five minutes of observation might detect immediate startup failures or elevated HTTP error rates. It may not detect infrequently used application paths, gradual resource exhaustion or problems that only appear under sustained load.",
-      },
-      {
-        type: "p",
-        text: "The exact traffic-shifting and rollback behaviour depends on the ECS deployment controller and its configuration. Percentages alone do not guarantee a safe rollout.",
-      },
-
-      {
-        type: "heading",
-        text: "Testing rollback by deliberately breaking the application",
-      },
-      {
-        type: "p",
-        text: "I wanted to verify that the deployment system could recover from a failed release, rather than assume the rollback configuration would work.",
-      },
-      {
-        type: "p",
-        text: "To test this, I deliberately introduced a failure into the application's /healthz endpoint and deployed the broken revision through the pipeline.",
-      },
-      {
-        type: "p",
-        text: "The deployment configuration used a 10% canary traffic shift and a five-minute bake period. The Application Load Balancer's health checks detected the unhealthy application targets, causing the associated CloudWatch alarm to enter the ALARM state.",
-      },
-      {
-        type: "p",
-        text: "ECS responded by automatically rolling back the deployment to the previous healthy revision. This demonstrated that the deployment's failure-detection and recovery mechanisms were connected and functioning.",
-      },
-      {
-        type: "code",
-        language: "Rollback test",
-        text: `Deploy revision with broken /healthz
-                |
-                v
-ECS begins canary deployment
-                |
-                v
-ALB detects unhealthy targets
-                |
-                v
-CloudWatch alarm enters ALARM
-                |
-                v
-ECS triggers automatic rollback
-                |
-                v
-Previous healthy revision restored`,
-      },
-      {
-        type: "p",
-        text: "The experiment validated an important failure scenario: a replacement revision that could not satisfy the configured health checks. It did not prove that every application regression would be detected, particularly failures that leave /healthz responding successfully.",
-      },
-      {
-        type: "note",
-        text: "A rollback configuration is only a recovery mechanism on paper until it has been tested against a real failure.",
-      },
-
-      {
-        type: "heading",
-        text: "Rollback needs meaningful signals",
-      },
-      {
-        type: "p",
-        text: "Rollback is often described as a feature that can simply be enabled. The more difficult engineering decision is determining when it should happen.",
-      },
-      {
-        type: "p",
-        text: "A deployment system needs a definition of unacceptable behaviour.",
-      },
-      {
-        type: "p",
-        text: "That might include unhealthy load-balancer targets, elevated server error rates, failed application requests or another metric closely connected to application correctness.",
-      },
-      {
-        type: "p",
-        text: "CloudWatch alarms can participate in automated deployment decisions when integrated with the relevant deployment mechanism.",
-      },
-      {
-        type: "p",
-        text: "But the alarm configuration matters.",
-      },
-      {
-        type: "p",
-        text: "An alarm that is too sensitive can interrupt healthy deployments. An alarm that only detects complete service failure may miss serious application regressions.",
-      },
-      {
-        type: "p",
-        text: "There is also a distinction between reverting application traffic and reversing every consequence of a release.",
-      },
-      {
-        type: "p",
-        text: "Rolling back an application version does not automatically reverse database schema changes or undo data written by the new version.",
-      },
-      {
-        type: "p",
-        text: "As a platform becomes more stateful, compatibility between application versions and persistent data becomes part of deployment reliability.",
-      },
-      {
-        type: "note",
-        text: "Rollback is only as reliable as the monitoring signals, deployment mechanism and application compatibility assumptions supporting it.",
-      },
-
-      {
-        type: "heading",
-        text: "When container security checks complicate the pipeline",
-      },
-      {
-        type: "p",
-        text: "The project also involved investigating container vulnerabilities and security-scanning failures.",
-      },
-      {
-        type: "p",
-        text: "A Docker image can build successfully while containing vulnerable operating-system packages or application dependencies.",
-      },
-      {
-        type: "p",
-        text: "I worked through base-image updates and vulnerability-scanning issues while improving the pipeline.",
-      },
-      {
-        type: "p",
-        text: "Some of the debugging involved scanner handling of software bill of materials data embedded in image layers.",
-      },
-      {
-        type: "p",
-        text: "That required distinguishing between genuine vulnerability findings, dependency problems and the behaviour of the scanning tool itself.",
-      },
-      {
-        type: "p",
-        text: "Treating every failed security check as the same problem would have made troubleshooting less effective.",
-      },
-      {
-        type: "p",
-        text: "Updating a base image can address vulnerabilities, but it can also introduce compatibility changes. A security improvement still needs to be tested against the application's runtime behaviour.",
-      },
-      {
-        type: "p",
-        text: "The wider lesson was that build success, security assessment and runtime correctness are separate properties.",
-      },
-
-      {
-        type: "heading",
-        text: "The cost of production-style infrastructure",
-      },
-      {
-        type: "p",
-        text: "A platform can be technically sophisticated while still being unnecessarily expensive for its intended workload.",
-      },
-      {
-        type: "p",
-        text: "Fargate tasks, load balancers, networking and managed AWS services all introduce operational costs.",
-      },
-      {
-        type: "p",
-        text: "For a portfolio environment, running a complete production-style architecture continuously may provide little additional value.",
-      },
-      {
-        type: "p",
-        text: "Infrastructure teardown therefore becomes part of the development workflow.",
-      },
-      {
-        type: "p",
-        text: "Terraform helps make resource creation and removal repeatable, but it is still important to inspect the AWS account for resources that may remain after a destroy operation.",
-      },
-      {
-        type: "p",
-        text: "The broader lesson is that architecture always involves trade-offs.",
-      },
-      {
-        type: "p",
-        text: "Reliability, operational complexity and cost need to be considered together. Production-style engineering does not mean using every available cloud service. It means understanding why each component exists and what it costs to operate.",
-      },
-
-      {
-        type: "heading",
-        text: "What I took away",
-      },
-      {
-        type: "p",
-        text: "The most valuable part of building this platform was not learning how to launch containers on ECS.",
-      },
-      {
-        type: "p",
-        text: "It was learning how the surrounding systems influence whether a deployment is safe, reproducible and maintainable.",
-      },
-      {
-        type: "p",
-        text: "Terraform made infrastructure changes reviewable. GitHub Actions connected source control to deployment automation. OIDC introduced a more deliberate authentication boundary. ECS provided the runtime, while traffic shifting and monitoring shaped how releases could be evaluated.",
-      },
-      {
-        type: "p",
-        text: "The debugging work was particularly valuable because it forced me to understand why the system behaved a certain way rather than simply follow a configuration that happened to work.",
-      },
-      {
-        type: "note",
-        text: "Deployment engineering is not just about making releases faster. It is about making changes predictable, observable and recoverable.",
-      },
+      {"type": "p", "text": "For this project, I built a deployment pipeline for a URL shortener running on Amazon ECS Fargate. Terraform manages the AWS infrastructure, while GitHub Actions builds and deploys the container images."},
+      {"type": "p", "text": "I used blue/green deployments with a 10% canary traffic shift and a five-minute monitoring window. I also configured CloudWatch alarms to trigger a rollback if the new deployment became unhealthy."},
+      {"type": "p", "text": "Once everything was working, I tested the rollback by deliberately breaking the application’s `/healthz` endpoint."},
+      {"type": "p", "text": "The ALB detected the unhealthy targets, the CloudWatch alarm entered the `ALARM` state, and ECS rolled back to the previous healthy revision."},
+      {"type": "p", "text": "Here’s how I set it up and some of the issues I ran into along the way."},
+      {"type": "heading", "text": "The architecture"},
+      {"type": "p", "text": "The application is a URL shortener deployed on ECS Fargate. An Application Load Balancer handles incoming traffic, and Amazon ECR stores the container images."},
+      {"type": "p", "text": "I used Terraform to provision the infrastructure and GitHub Actions to automate the deployment process. The workflow authenticates with AWS through OIDC, so there are no long-lived AWS access keys stored in GitHub."},
+      {"type": "p", "text": "The main components are:"},
+      {"type": "code", "language": "Architecture overview", "text": "GitHub Repository\n       |\n       v\nGitHub Actions ---- OIDC ---- AWS IAM / STS\n       |\n       v\nBuild and scan container images\n       |\n       v\nAmazon ECR\n       |\n       v\nECS Fargate\n       |\n       v\nApplication Load Balancer\n       |\n       +-- Existing application version\n       |\n       +-- Replacement application version"},
+      {"type": "p", "text": "I kept the infrastructure in Terraform so I could recreate the environment when needed. This was especially useful for managing AWS costs, since I wasn’t leaving the platform running continuously."},
+      {"type": "heading", "text": "Infrastructure and CI/CD"},
+      {"type": "p", "text": "Terraform handles the AWS resources, including the networking, IAM configuration and ECS infrastructure."},
+      {"type": "p", "text": "Before applying changes, I used the usual validation commands:"},
+      {"type": "code", "language": "Bash", "text": "terraform fmt -check\nterraform validate\nterraform plan"},
+      {"type": "p", "text": "GitHub Actions handles the container build and deployment workflow. The images are pushed to ECR before being deployed to ECS."},
+      {"type": "p", "text": "I also included container security scanning with Trivy, which picked up some issues I’ll cover later."},
+      {"type": "subheading", "text": "Authenticating GitHub Actions with AWS"},
+      {"type": "p", "text": "I configured GitHub Actions to use OIDC for AWS authentication."},
+      {"type": "p", "text": "The workflow requests an OIDC token from GitHub, which AWS STS uses to verify whether the workflow is allowed to assume the configured IAM role."},
+      {"type": "p", "text": "The workflow needs the following permissions:"},
+      {"type": "code", "language": "GitHub Actions YAML", "text": "permissions:\n  contents: read\n  id-token: write"},
+      {"type": "p", "text": "The IAM role’s trust policy then determines which GitHub workflows can assume it."},
+      {"type": "p", "text": "Getting that trust policy right turned out to be one of the more time-consuming parts of the project."},
+      {"type": "heading", "text": "Debugging the OIDC trust policy"},
+      {"type": "p", "text": "At one point, the GitHub Actions workflow started failing with an `sts:AssumeRoleWithWebIdentity` error."},
+      {"type": "p", "text": "The role’s trust policy was expecting a subject claim in the usual GitHub format:"},
+      {"type": "code", "language": "Expected OIDC subject", "text": "repo:OWNER/REPOSITORY:ref:refs/heads/main"},
+      {"type": "p", "text": "I inspected the OIDC token being issued by GitHub and found that the actual subject included the owner and repository IDs:"},
+      {"type": "code", "language": "Observed OIDC subject", "text": "repo:OWNER@OWNER_ID/REPOSITORY@REPOSITORY_ID:ref:refs/heads/main"},
+      {"type": "p", "text": "The trust policy didn’t match that subject, so AWS was rejecting the role-assumption request."},
+      {"type": "p", "text": "I updated the trust conditions to match the actual token claims, and the workflow was able to authenticate successfully."},
+      {"type": "p", "text": "I went into the OIDC debugging in more detail in my separate article, **Your GitHub Actions Workflow Has No AWS Keys. Is It Actually Secure?**"},
+      {"type": "heading", "text": "Configuring the blue/green deployment"},
+      {"type": "p", "text": "For the deployment strategy, I used a canary rollout."},
+      {"type": "p", "text": "The new application version initially receives 10% of traffic, while the existing version continues handling the remaining 90%."},
+      {"type": "p", "text": "I configured a five-minute monitoring window before the deployment progressed."},
+      {"type": "p", "text": "During that period, the ALB health checks and CloudWatch alarms provide the signals used to determine whether the deployment should continue or roll back."},
+      {"type": "p", "text": "The configuration was:"},
+      {"type": "code", "language": "Deployment configuration", "text": "Deployment strategy: Blue/green\nInitial traffic shift: 10%\nMonitoring window: 5 minutes\nHealth checks: Application Load Balancer\nFailure monitoring: CloudWatch alarms\nRecovery: Automatic rollback"},
+      {"type": "p", "text": "I wanted to test the full process, including what happened when the replacement application failed its health checks."},
+      {"type": "heading", "text": "Testing the automatic rollback"},
+      {"type": "p", "text": "To test the rollback, I deliberately broke the `/healthz` endpoint in the application and deployed the faulty revision."},
+      {"type": "p", "text": "The endpoint is used by the health checks to determine whether the application is healthy, so breaking it gave me a controlled way to trigger a deployment failure."},
+      {"type": "p", "text": "After starting the deployment, the ALB detected that the replacement targets were unhealthy."},
+      {"type": "p", "text": "The associated CloudWatch alarm entered the `ALARM` state, and ECS triggered the rollback."},
+      {"type": "code", "language": "Rollback test", "text": "Broken /healthz deployed\n          |\n          v\n10% canary deployment begins\n          |\n          v\nALB health checks fail\n          |\n          v\nCloudWatch alarm enters ALARM\n          |\n          v\nAutomatic rollback triggered\n          |\n          v\nPrevious healthy revision restored"},
+      {"type": "p", "text": "I checked the deployment afterwards and confirmed that ECS had restored the previous healthy revision."},
+      {"type": "p", "text": "The rollback happened automatically, without me needing to manually deploy the earlier image."},
+      {"type": "subheading", "text": "What the test covered"},
+      {"type": "p", "text": "This test covered a deployment where the replacement application failed its configured health checks."},
+      {"type": "p", "text": "There are other failure scenarios I’d still want to test."},
+      {"type": "p", "text": "For example, the `/healthz` endpoint could return a successful response while the URL shortener’s main functionality was broken. In that situation, the ALB might continue reporting healthy targets."},
+      {"type": "p", "text": "Adding application-level checks for URL creation and redirects would give the deployment pipeline more useful signals."},
+      {"type": "p", "text": "I’d also like to measure how long recovery takes from the initial failure to the previous revision being restored."},
+      {"type": "heading", "text": "Container security scanning"},
+      {"type": "p", "text": "I used Trivy to scan the container images and encountered vulnerability findings that needed addressing."},
+      {"type": "p", "text": "I updated the Go build images, upgraded dependencies including `github.com/lib/pq`, and added package upgrades to the Alpine runtime images."},
+      {"type": "p", "text": "The images were building successfully, but the security scans still needed attention. I worked through the findings and updated the Dockerfiles and dependencies."},
+      {"type": "heading", "text": "Managing AWS costs"},
+      {"type": "p", "text": "I wasn’t keeping the environment running permanently, so being able to recreate it was important."},
+      {"type": "p", "text": "The platform uses services such as ECS Fargate and an Application Load Balancer, which can generate costs even when the application isn’t receiving much traffic."},
+      {"type": "p", "text": "Keeping the infrastructure in Terraform made it easier to provision the environment for testing and tear it down afterwards."},
+      {"type": "p", "text": "It also meant I could return to the project without having to rebuild the AWS configuration manually."},
+      {"type": "heading", "text": "What I’d improve next"},
+      {"type": "p", "text": "The rollback test worked for the failure I introduced, but there are a few areas I’d like to explore further."},
+      {"type": "p", "text": "The first is application-level monitoring. I’d want the deployment to detect problems with creating and resolving shortened URLs, even when the health endpoint is responding normally."},
+      {"type": "p", "text": "I’d also like to measure rollback duration and test failures that develop over a longer period."},
+      {"type": "p", "text": "Another area is database compatibility. Rolling back an application doesn’t automatically reverse database changes, so future versions would need to account for that."},
+      {"type": "heading", "text": "Final thoughts"},
+      {"type": "p", "text": "This project gave me practical experience with ECS deployments, Terraform, GitHub Actions, OIDC and CloudWatch monitoring."},
+      {"type": "p", "text": "The rollback experiment was particularly useful because I could follow the failure from the application health checks through to the CloudWatch alarm and the ECS deployment."},
+      {"type": "p", "text": "There are still other failure scenarios I’d want to investigate, particularly ones that don’t affect the health endpoint."},
     ],
   },
 
