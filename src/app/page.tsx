@@ -219,12 +219,12 @@ export default function Home() {
             return (
               <article
                 key={project.title}
-                className="group min-w-0"
+                className="group project-card-reveal project-card-interactive min-w-0"
               >
                 <Link
                   href={project.href}
                   aria-label={`View ${project.title} case study`}
-                  className="relative block overflow-hidden border border-white/10 bg-[#101010] transition-colors duration-300 hover:border-white/25"
+                  className="relative block overflow-hidden border border-white/10 bg-[#101010] transition-all duration-300 hover:border-white/25 active:scale-[0.99] motion-reduce:transform-none"
                 >
                   <div
                     className="relative h-[180px] w-full sm:h-[200px] lg:h-[220px]"

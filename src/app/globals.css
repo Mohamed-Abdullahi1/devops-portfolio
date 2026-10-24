@@ -56,3 +56,43 @@ code,
 pre {
   font-family: var(--font-geist-mono), monospace;
 }
+
+/* Project card entrance */
+@keyframes project-card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .project-card-reveal {
+      animation: project-card-reveal 700ms ease-out both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 75%;
+    }
+  }
+}
+
+/* Project card interactions */
+@media (hover: hover) and (pointer: fine) {
+  .project-card-interactive {
+    transition: transform 250ms ease;
+  }
+
+  .project-card-interactive:hover {
+    transform: translateY(-5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-card-interactive {
+    transition: none;
+  }
+}
