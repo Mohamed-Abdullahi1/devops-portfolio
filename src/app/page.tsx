@@ -56,56 +56,56 @@ export default function Home() {
   return (
     <main className="mx-auto w-full max-w-[1440px] px-6 sm:px-10 lg:px-16 xl:px-20">
      {/* Navigation */}
-<header className="flex min-h-24 flex-wrap items-center justify-between gap-6 border-b border-white/10 py-6">
-  <Link
-    href="/"
-    className="text-[15px] font-semibold tracking-[-0.035em] text-white"
-  >
-    Mohamed Abdullahi
-    <span className="ml-1 text-neutral-500">.</span>
-  </Link>
+      <header className="border-b border-white/10 py-5 sm:py-6">
+        <div className="flex items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="text-[15px] font-semibold tracking-[-0.035em] text-white"
+          >
+            Mohamed Abdullahi
+            <span className="ml-1 text-neutral-500">.</span>
+          </Link>
 
-  <nav
-    aria-label="Main navigation"
-    className="flex flex-wrap items-center gap-6 text-[13px] text-neutral-400 sm:gap-9"
-  >
-    <a
-      href="#projects"
-      className="transition-colors hover:text-white"
-    >
-      Projects
-    </a>
+          <a
+            href="/Mohamed_Abdullahi_CV.pdf"
+            download="Mohamed_Abdullahi_CV.pdf"
+            aria-label="Download CV"
+            className="inline-flex shrink-0 items-center gap-2 border border-white/20 px-3 py-2 text-xs font-medium text-white sm:hidden"
+          >
+            <FileDown size={15} strokeWidth={1.7} />
+            CV
+          </a>
 
-    <a
-      href="#writeups"
-      className="transition-colors hover:text-white"
-    >
-      Writing
-    </a>
+          <nav
+            aria-label="Desktop navigation"
+            className="hidden items-center gap-9 text-[13px] text-neutral-400 sm:flex"
+          >
+            <a href="#projects" className="transition-colors hover:text-white">Projects</a>
+            <a href="#writeups" className="transition-colors hover:text-white">Writing</a>
+            <a href="#about" className="transition-colors hover:text-white">About</a>
+            <a href="#contact" className="transition-colors hover:text-white">Contact</a>
 
-    <a
-      href="#about"
-      className="transition-colors hover:text-white"
-    >
-      About
-    </a>
+            <a
+              href="/Mohamed_Abdullahi_CV.pdf"
+              download="Mohamed_Abdullahi_CV.pdf"
+              className="inline-flex items-center gap-2 border border-white/20 px-4 py-2 font-medium text-white transition-colors hover:border-white/50 hover:bg-white/5"
+            >
+              <FileDown size={15} strokeWidth={1.7} />
+              Download CV
+            </a>
+          </nav>
+        </div>
 
-    <a
-      href="#contact"
-      className="transition-colors hover:text-white"
-    >
-      Contact
-    </a>
-
-    <a
-      href="/Mohamed_Abdullahi_CV.pdf"
-      download="Mohamed_Abdullahi_CV.pdf"
-      className="inline-flex items-center gap-2 border border-white/20 px-4 py-2 font-medium text-white transition-colors hover:border-white/50 hover:bg-white/5"
-    >
-      Download CV ↗
-    </a>
-  </nav>
-</header>
+        <nav
+          aria-label="Mobile navigation"
+          className="mt-6 grid grid-cols-4 gap-2 text-center text-xs text-neutral-400 sm:hidden"
+        >
+          <a href="#projects" className="py-1 transition-colors hover:text-white">Projects</a>
+          <a href="#writeups" className="py-1 transition-colors hover:text-white">Writing</a>
+          <a href="#about" className="py-1 transition-colors hover:text-white">About</a>
+          <a href="#contact" className="py-1 transition-colors hover:text-white">Contact</a>
+        </nav>
+      </header>
 
       {/* Hero */}
       <section className="flex min-h-[calc(100svh-96px)] flex-col justify-center border-b border-white/10 pb-8 pt-4 lg:-translate-y-8">
@@ -177,7 +177,7 @@ export default function Home() {
           <a
           href="/Mohamed_Abdullahi_CV.pdf"
           download="Mohamed_Abdullahi_CV.pdf"
-          className="group inline-flex items-center gap-3 text-lg font-medium text-neutral-200 transition-colors hover:text-white"
+          className="group hidden sm:inline-flex items-center gap-3 text-lg font-medium text-neutral-200 transition-colors hover:text-white"
         >
           <FileDown size={24} strokeWidth={1.8} />
           Download CV

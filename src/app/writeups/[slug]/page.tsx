@@ -950,477 +950,219 @@ Previous healthy revision restored`,
     blocks: [
       {
         type: "p",
-        text: "Your GitHub Actions workflow no longer stores AWS access keys. Instead, it uses OpenID Connect to request temporary credentials. That's a significant improvement. But does it actually mean your deployment pipeline is secure?",
-      },
-      {
-        type: "p",
-        text: "The answer depends on something that receives considerably less attention than removing secrets: the trust relationship between GitHub and AWS.",
-      },
-      {
-        type: "p",
-        text: "OIDC changes how a workflow authenticates, but it does not automatically establish which workflows should be authorised to access production infrastructure.",
-      },
-      {
-        type: "p",
-        text: "While working on my ECS deployment platform, I encountered problems involving GitHub's OIDC identity claims and AWS IAM trust policies. That experience raised a more interesting question: what exactly is AWS trusting when it accepts a token issued to a GitHub Actions job?",
-      },
-
-      {
-        type: "heading",
-        text: "The problem OIDC was designed to solve",
-      },
-      {
-        type: "p",
-        text: "Traditionally, CI/CD pipelines authenticated with AWS using an access key ID and secret access key belonging to an IAM user.",
-      },
-      {
-        type: "p",
-        text: "Those credentials could be stored in GitHub repository secrets and injected into a workflow whenever a deployment needed access to AWS.",
-      },
-      {
-        type: "p",
-        text: "Although GitHub encrypts repository secrets, long-lived credentials still create operational risks.",
-      },
-      {
-        type: "p",
-        text: "If credentials are exposed through a compromised workflow, an accidental log entry or another security failure, they may remain usable until explicitly revoked or rotated.",
-      },
-      {
-        type: "p",
-        text: "OIDC removes the need for this arrangement.",
-      },
-      {
-        type: "p",
-        text: "Instead of retrieving an existing AWS secret, a GitHub Actions job requests a short-lived identity token from GitHub's OIDC provider.",
-      },
-      {
-        type: "p",
-        text: "AWS Security Token Service evaluates the token against an IAM role's trust policy and, if the conditions are satisfied, issues temporary AWS credentials.",
+        text: "My GitHub Actions workflow was failing to authenticate with AWS. The IAM role existed, the OIDC provider was configured, and the trust policy appeared to restrict access to the correct repository and branch.",
       },
       {
         type: "code",
-        language: "Authentication flow",
-        text: `GitHub Actions job
-        |
-        v
-Requests an OIDC token
-        |
-        v
-GitHub OIDC identity provider
-        |
-        v
-Signed identity token
-        |
-        v
-AWS Security Token Service
-        |
-        v
-IAM trust policy evaluation
-        |
-        +-- Denied
-        |
-        +-- Allowed
-               |
-               v
-      Temporary AWS credentials`,
+        language: "Authentication error",
+        text: "Error: Could not assume role with OIDC:\nNot authorized to perform sts:AssumeRoleWithWebIdentity",
       },
       {
         type: "p",
-        text: "The improvement is substantial. There is no persistent AWS access key to distribute to the workflow, and the credentials issued by AWS have a limited lifetime.",
+        text: "I eventually found the problem by decoding the GitHub OIDC token and inspecting its claims. The subject AWS was expecting wasn't the subject GitHub was issuing.",
       },
       {
         type: "p",
-        text: "However, temporary credentials can still be misused during their validity period. Their short lifespan is one security control, not a complete authorisation model.",
+        text: "That led me to test something else: what would happen if I made the trust policy less restrictive? A branch that AWS had previously rejected was suddenly able to assume the role after I changed the IAM trust condition.",
       },
       {
-        type: "note",
-        text: "OIDC reduces the risk associated with long-lived credentials. It does not automatically reduce the permissions granted to a workflow or restrict which workflows AWS will trust.",
+        type: "p",
+        text: "Removing long-lived AWS credentials is only part of securing a deployment pipeline. The conditions under which temporary credentials are issued matter just as much.",
       },
 
       {
         type: "heading",
-        text: "What AWS actually evaluates",
+        text: "What OIDC actually protects against",
       },
       {
         type: "p",
-        text: "When GitHub issues an OIDC token, it includes claims describing the identity and execution context of the requesting job.",
+        text: "OIDC is a significant improvement over storing long-lived AWS credentials in GitHub Actions secrets. Instead of retrieving a long-lived access key, a workflow requests a signed identity token from GitHub.",
       },
       {
         type: "p",
-        text: "These claims allow the receiving system to make decisions about whether that identity should be trusted.",
-      },
-      {
-        type: "p",
-        text: "For AWS IAM integrations, two particularly important claims are the audience and subject.",
-      },
-      {
-        type: "p",
-        text: "The audience identifies the intended recipient of the token. The subject describes the GitHub workflow context requesting access.",
-      },
-      {
-        type: "p",
-        text: "A conventional subject for a workflow running on the main branch might look like this:",
-      },
-      {
-        type: "code",
-        language: "OIDC subject",
-        text: "repo:example-org/example-repo:ref:refs/heads/main",
-      },
-      {
-        type: "p",
-        text: "A job associated with a GitHub environment may instead present a subject resembling:",
-      },
-      {
-        type: "code",
-        language: "OIDC subject",
-        text: "repo:example-org/example-repo:environment:production",
-      },
-      {
-        type: "p",
-        text: "These examples reflect conventional GitHub subject formats. GitHub also supports customised subject templates, so the actual token must be inspected rather than assumed.",
-      },
-      {
-        type: "p",
-        text: "The IAM role's trust policy determines whether AWS accepts the identity represented by those claims.",
-      },
-      {
-        type: "p",
-        text: "If the trust conditions are too broad, more workflow contexts may be authorised than intended. If they are too restrictive or do not match the actual token, legitimate deployments can fail.",
-      },
-
-      {
-        type: "heading",
-        text: "The repository-wide trust problem",
-      },
-      {
-        type: "p",
-        text: "Consider a repository containing several GitHub Actions workflows. One runs unit tests, another builds container images, and a third deploys the application to production.",
-      },
-      {
-        type: "p",
-        text: "Only the production deployment workflow should be able to assume a role with production deployment permissions.",
-      },
-      {
-        type: "p",
-        text: "But imagine the IAM role uses a wildcard that trusts every OIDC subject associated with the repository.",
-      },
-      {
-        type: "code",
-        language: "IAM trust policy condition",
-        text: `{
-  "Condition": {
-    "StringEquals": {
-      "token.actions.githubusercontent.com:aud":
-        "sts.amazonaws.com"
-    },
-    "StringLike": {
-      "token.actions.githubusercontent.com:sub":
-        "repo:example-org/example-repo:*"
-    }
-  }
-}`,
-      },
-      {
-        type: "p",
-        text: "This is an illustrative condition block, not a complete IAM role trust policy.",
-      },
-      {
-        type: "p",
-        text: "The wildcard allows multiple workflow contexts within the repository to match the subject condition.",
-      },
-      {
-        type: "p",
-        text: "That is broader than a policy intended to authorise only one production deployment path.",
-      },
-      {
-        type: "p",
-        text: "It does not mean every workflow automatically receives credentials. It means the trust condition itself may not distinguish between the contexts that matter.",
-      },
-      {
-        type: "p",
-        text: "The problem is not that the token is fake or that AWS STS is insecure.",
-      },
-      {
-        type: "p",
-        text: "The problem is that the organisation has described an overly broad set of identities as trusted.",
-      },
-      {
-        type: "note",
-        text: "Temporary credentials do not compensate for a trust policy that authorises the wrong identities.",
-      },
-
-      {
-        type: "heading",
-        text: "Authentication and authorisation are different",
-      },
-      {
-        type: "p",
-        text: "An OIDC token establishes information about the identity and context of a requesting workflow.",
-      },
-      {
-        type: "p",
-        text: "It does not automatically establish that the workflow should be permitted to deploy production infrastructure.",
-      },
-      {
-        type: "p",
-        text: "AWS IAM separates these concerns.",
-      },
-      {
-        type: "p",
-        text: "The role's trust policy determines which principals can assume the role. Its permissions policies determine what those principals can do after assuming it.",
-      },
-      {
-        type: "p",
-        text: "Both decisions matter.",
-      },
-      {
-        type: "p",
-        text: "Imagine an IAM role that can update a production ECS service.",
-      },
-      {
-        type: "p",
-        text: "Even if its permissions are carefully restricted to that deployment operation, it is dangerous if unintended workflows can assume it.",
-      },
-      {
-        type: "p",
-        text: "Equally, a narrowly restricted trust policy does not make a role safe if the resulting session receives unnecessarily broad administrative permissions.",
-      },
-      {
-        type: "p",
-        text: "The identity allowed to assume a role and the actions permitted after assumption are separate parts of the same security boundary.",
-      },
-
-      {
-        type: "heading",
-        text: "Restricting the deployment context",
-      },
-      {
-        type: "p",
-        text: "If the intended deployment identity is a conventional main-branch context, a stricter trust condition can require that exact subject.",
-      },
-      {
-        type: "code",
-        language: "IAM JSON — branch restriction",
-        text: `{
-  "Condition": {
-    "StringEquals": {
-      "token.actions.githubusercontent.com:aud":
-        "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub":
-        "repo:example-org/example-repo:ref:refs/heads/main"
-    }
-  }
-}`,
-      },
-      {
-        type: "p",
-        text: "This narrows the set of workflow contexts that can assume the role.",
-      },
-      {
-        type: "p",
-        text: "However, a branch restriction is not necessarily a workflow restriction.",
-      },
-      {
-        type: "p",
-        text: "Multiple workflows may run on the same branch. If an attacker can modify a workflow on that branch or otherwise cause an authorised context to execute malicious steps, the branch condition alone is not a complete defence.",
-      },
-      {
-        type: "p",
-        text: "Repository write permissions, branch protection, code review and control over workflow changes therefore become part of the AWS security model, even though those controls exist on GitHub's side of the integration.",
-      },
-      {
-        type: "p",
-        text: "The security of a deployment role depends partly on the security of the repository and workflow configuration permitted to assume it.",
-      },
-
-      {
-        type: "heading",
-        text: "Why protected environments help",
-      },
-      {
-        type: "p",
-        text: "GitHub environments provide another mechanism for controlling deployment workflows.",
-      },
-      {
-        type: "p",
-        text: "A production environment can be configured with deployment restrictions and approval requirements, depending on the repository's available GitHub features.",
-      },
-      {
-        type: "p",
-        text: "When a job uses an environment, its conventional OIDC subject can reflect that environment.",
-      },
-      {
-        type: "p",
-        text: "AWS can then restrict role assumption to the expected environment subject.",
-      },
-      {
-        type: "code",
-        language: "IAM JSON — environment restriction",
-        text: `{
-  "Condition": {
-    "StringEquals": {
-      "token.actions.githubusercontent.com:aud":
-        "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub":
-        "repo:example-org/example-repo:environment:production"
-    }
-  }
-}`,
-      },
-      {
-        type: "p",
-        text: "That condition should be paired with appropriate GitHub environment protection settings.",
-      },
-      {
-        type: "p",
-        text: "Merely naming an environment production does not make it protected.",
-      },
-      {
-        type: "p",
-        text: "The value comes from combining GitHub's controls over who can reach that environment with AWS's restriction on which environment identity it accepts.",
-      },
-      {
-        type: "p",
-        text: "Neither side should be evaluated in isolation.",
-      },
-
-      {
-        type: "heading",
-        text: "What about individual workflow identity?",
-      },
-      {
-        type: "p",
-        text: "For some organisations, even an environment-based subject may be too broad.",
-      },
-      {
-        type: "p",
-        text: "A repository may contain several workflows capable of targeting the same environment, while only a centrally reviewed deployment workflow should receive production credentials.",
-      },
-      {
-        type: "p",
-        text: "GitHub supports customising OIDC subject claims, including designs involving reusable workflows and workflow identity.",
-      },
-      {
-        type: "p",
-        text: "These controls can help distinguish an approved deployment workflow from other jobs sharing a repository, branch or environment.",
-      },
-      {
-        type: "p",
-        text: "The precise claim template and IAM condition must be validated against the actual GitHub and AWS integration rather than assumed.",
-      },
-      {
-        type: "p",
-        text: "The design principle is straightforward: if the security requirement names a particular workflow, the trust boundary should ideally be able to identify that workflow rather than merely the repository containing it.",
-      },
-
-      {
-        type: "heading",
-        text: "The GitHub permission people misunderstand",
-      },
-      {
-        type: "p",
-        text: "A GitHub Actions job needs permission to request an OIDC identity token.",
+        text: "AWS evaluates that token against an IAM role's trust policy and, if the conditions match, issues temporary credentials through AWS Security Token Service (STS).",
       },
       {
         type: "code",
         language: "GitHub Actions YAML",
         text: `permissions:
+  id-token: write
   contents: read
-  id-token: write`,
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: \${{ secrets.AWS_ROLE_ARN }}
+          aws-region: eu-west-2`,
       },
       {
         type: "p",
-        text: "The id-token: write permission allows the job to request an identity token from GitHub.",
+        text: "The id-token: write permission allows the job to request an OIDC token. It doesn't grant AWS access by itself. The IAM role's trust policy determines whether the token can be exchanged for temporary credentials.",
       },
       {
         type: "p",
-        text: "It does not itself grant AWS access.",
-      },
-      {
-        type: "p",
-        text: "AWS must still decide whether the token satisfies the IAM role's trust policy.",
-      },
-      {
-        type: "p",
-        text: "This distinction becomes useful when troubleshooting authentication failures.",
-      },
-      {
-        type: "p",
-        text: "If the workflow cannot request a token, the issue may involve GitHub Actions permissions.",
-      },
-      {
-        type: "p",
-        text: "If the workflow can request a token but cannot assume the AWS role, the issue may involve token claims or IAM trust conditions.",
-      },
-      {
-        type: "p",
-        text: "If role assumption succeeds but an ECS or ECR operation fails, that is a different authorisation problem involving the role's permissions or another AWS control.",
-      },
-      {
-        type: "p",
-        text: "Treating these as separate failure points makes debugging more systematic.",
+        text: "The important question is which GitHub execution contexts are allowed to assume the role.",
       },
 
       {
         type: "heading",
-        text: "Least privilege is the second half of the boundary",
+        text: "The difference between trusting a branch and trusting a repository",
       },
       {
         type: "p",
-        text: "A narrowly written trust policy can still introduce excessive risk if the assumed role has administrator-level permissions.",
+        text: "A conventional GitHub OIDC subject for a workflow running on main looks like this:",
+      },
+      {
+        type: "code",
+        language: "OIDC subject",
+        text: "repo:OWNER/REPOSITORY:ref:refs/heads/main",
       },
       {
         type: "p",
-        text: "A workflow responsible for pushing images to ECR does not automatically need permission to modify networking, IAM or databases.",
+        text: "AWS can restrict role assumption to that exact subject:",
+      },
+      {
+        type: "code",
+        language: "IAM JSON — exact branch",
+        text: `{
+  "Condition": {
+    "StringEquals": {
+      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+      "token.actions.githubusercontent.com:sub": "repo:OWNER/REPOSITORY:ref:refs/heads/main"
+    }
+  }
+}`,
       },
       {
         type: "p",
-        text: "Likewise, an application release workflow and a Terraform infrastructure workflow may deserve separate IAM roles.",
+        text: "Now compare it with a wildcard that allows matching branch contexts throughout the repository:",
+      },
+      {
+        type: "code",
+        language: "IAM JSON — all branches",
+        text: `{
+  "Condition": {
+    "StringEquals": {
+      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+    },
+    "StringLike": {
+      "token.actions.githubusercontent.com:sub": "repo:OWNER/REPOSITORY:ref:refs/heads/*"
+    }
+  }
+}`,
       },
       {
         type: "p",
-        text: "Separating responsibilities makes mistakes easier to contain.",
+        text: "The first policy restricts access to the main branch context. The second allows matching branch contexts throughout the repository.",
       },
       {
         type: "p",
-        text: "If a build workflow is compromised, its credentials should not provide a general-purpose route to production infrastructure.",
+        text: "Imagine developers can push to feature branches, but production deployments must go through a reviewed workflow on main. If the production IAM role trusts every branch, a developer who can create and execute workflows on another branch could potentially assume that role.",
       },
       {
         type: "p",
-        text: "Temporary credentials limit how long a credential remains usable. Least privilege limits what that credential can do.",
+        text: "They might have permission to contribute code without having permission to deploy it to production. An overly broad trust policy can erase that distinction.",
       },
       {
         type: "p",
-        text: "Both controls are necessary because they address different dimensions of risk.",
+        text: "It also increases the impact of a compromised GitHub account. Someone who gains access to an account capable of pushing workflows could potentially use the same route to obtain AWS credentials.",
+      },
+      {
+        type: "p",
+        text: "This isn't a weakness in OIDC itself. AWS is enforcing the conditions you've configured. The issue is whether those conditions represent the access boundaries you intended.",
+      },
+      {
+        type: "subheading",
+        text: "What about pull requests?",
+      },
+      {
+        type: "p",
+        text: "For a conventional pull-request workflow that isn't using an environment-based or customised subject, GitHub's OIDC subject generally looks like:",
+      },
+      {
+        type: "code",
+        language: "OIDC subject",
+        text: "repo:OWNER/REPOSITORY:pull_request",
+      },
+      {
+        type: "p",
+        text: "The refs/heads/* wildcard wouldn't match that subject. A broader pattern such as repo:OWNER/REPOSITORY:* could match additional contexts, including pull-request subjects. That broader pattern wasn't part of my experiment.",
       },
 
       {
         type: "heading",
-        text: "How I would validate the trust boundary",
+        text: "The permissions behind the temporary credentials",
       },
       {
         type: "p",
-        text: "A trust policy is more convincing when both the expected successful and expected denied cases have been tested.",
+        text: "Even with a carefully restricted trust policy, there's another question: what can the role actually do?",
       },
       {
         type: "p",
-        text: "I would start with an isolated test repository and an AWS IAM role with minimal permissions.",
+        text: "An IAM role has two distinct security controls. Its trust policy determines who can assume it. Its permissions policies determine what the resulting credentials can access.",
       },
       {
         type: "p",
-        text: "The objective would be to compare role assumption from different branches, environments and workflow contexts without giving the test role access to production infrastructure.",
+        text: "Suppose a deployment workflow only needs to update an ECS service. Giving that workflow AdministratorAccess would expose far more of the AWS account than the deployment requires.",
       },
       {
         type: "p",
-        text: "The first test would use a broad repository subject. Subsequent tests would narrow the subject to a particular branch or protected environment.",
+        text: "If malicious code executes inside an authorised job, it may be able to use the temporary credentials available to that job. Those credentials expire, but a short-lived session can still be used to modify or delete infrastructure.",
       },
       {
         type: "p",
-        text: "For each run, I would record the workflow context, expected result and whether STS accepted the token.",
+        text: "The better approach is to identify the AWS actions required by the deployment and restrict the role accordingly. An ECS deployment involving ECR, task definitions, IAM role passing and service updates may need several permissions, but each should have a reason for being there.",
       },
       {
         type: "p",
-        text: "A successful session could be identified using:",
+        text: "A restrictive trust policy and narrowly scoped IAM permissions address different risks. Both matter.",
+      },
+
+      {
+        type: "heading",
+        text: "GitHub is part of the trust boundary",
+      },
+      {
+        type: "p",
+        text: "A trust policy that only accepts main doesn't establish that the code running on main is safe.",
+      },
+      {
+        type: "p",
+        text: "If someone can modify a privileged workflow and push those changes directly to the trusted branch, AWS may still accept the resulting OIDC token. AWS evaluates the identity and claims presented by the workflow. It doesn't inspect the workflow's commands to decide whether they should be trusted.",
+      },
+      {
+        type: "p",
+        text: "Protected branches, required reviews and restrictions on workflow changes can help prevent unauthorised code from reaching trusted execution contexts.",
+      },
+      {
+        type: "p",
+        text: "A third-party GitHub Action running in a privileged job becomes part of the code you're relying on. Pinning actions to immutable commit SHAs and reviewing dependencies can reduce the risk of unexpected changes.",
+      },
+      {
+        type: "p",
+        text: "Workflows that handle untrusted contributions also need careful design. In particular, pull_request_target workflows can become dangerous when they check out and execute untrusted pull-request code while retaining access to privileged resources.",
+      },
+      {
+        type: "p",
+        text: "OIDC changes how credentials are issued, not whether the code using them is trustworthy.",
+      },
+
+      {
+        type: "heading",
+        text: "Testing the trust policy",
+      },
+      {
+        type: "p",
+        text: "I wanted to see the branch restriction work in practice. I created an isolated IAM role called github-oidc-security-test with no attached permissions policies. The experiment was about role assumption, not accessing AWS resources.",
+      },
+      {
+        type: "p",
+        text: "I also created a manually triggered GitHub Actions workflow that attempted to assume the role and then ran:",
       },
       {
         type: "code",
@@ -1428,49 +1170,159 @@ IAM trust policy evaluation
         text: "aws sts get-caller-identity",
       },
       {
-        type: "p",
-        text: "This command reports the AWS identity associated with the active credentials.",
+        type: "subheading",
+        text: "First problem: the subject didn't match",
       },
       {
         type: "p",
-        text: "It does not prove that the identity has permission to deploy infrastructure. That separation is useful because the trust boundary can be investigated without granting the test workflow unnecessary privileges.",
+        text: "My initial trust policy expected GitHub's conventional subject format:",
+      },
+      {
+        type: "code",
+        language: "OIDC subject",
+        text: "repo:OWNER/REPOSITORY:ref:refs/heads/main",
       },
       {
         type: "p",
-        text: "This describes a proposed validation method rather than completed experimental results.",
+        text: "But the workflow couldn't assume the role. To investigate, I added a debugging step that requested a GitHub OIDC token and decoded its JWT payload. I logged selected claims rather than the complete token.",
       },
       {
         type: "p",
-        text: "The important idea is to verify not only that an authorised workflow can assume the role, but that unauthorised workflow contexts are denied.",
+        text: "The actual subject contained numeric owner and repository IDs:",
+      },
+      {
+        type: "code",
+        language: "Observed OIDC subject (redacted)",
+        text: "repo:OWNER@OWNER_ID/REPOSITORY@REPOSITORY_ID:ref:refs/heads/main",
+      },
+      {
+        type: "p",
+        text: "The audience was sts.amazonaws.com, as expected. The subject format was different from the one in my trust policy.",
+      },
+      {
+        type: "p",
+        text: "I updated the trust policy to match the observed claim, and the workflow authenticated successfully. The token showed the ID-based subject, but I haven't independently verified the GitHub subject-template settings responsible for that format.",
+      },
+      {
+        type: "subheading",
+        text: "Second test: restricting access to main",
+      },
+      {
+        type: "p",
+        text: "Next, I created a branch called test/oidc-unauthorised-branch and triggered the same workflow while the IAM trust policy remained restricted to main.",
+      },
+      {
+        type: "code",
+        language: "AWS STS error",
+        text: "Not authorized to perform sts:AssumeRoleWithWebIdentity",
+      },
+      {
+        type: "p",
+        text: "AWS rejected the request. The OIDC token identified the test branch, which didn't satisfy the role's trust condition.",
+      },
+      {
+        type: "subheading",
+        text: "Third test: allowing every branch",
+      },
+      {
+        type: "p",
+        text: "I changed the isolated role's trust policy to use StringLike with a wildcard:",
+      },
+      {
+        type: "code",
+        language: "IAM JSON — branch wildcard",
+        text: `{
+  "StringLike": {
+    "token.actions.githubusercontent.com:sub": "repo:OWNER@OWNER_ID/REPOSITORY@REPOSITORY_ID:ref:refs/heads/*"
+  }
+}`,
+      },
+      {
+        type: "p",
+        text: "The audience condition remained restricted to sts.amazonaws.com. I reran the workflow from the same test branch, and this time authentication succeeded.",
+      },
+      {
+        type: "code",
+        language: "AWS STS identity (redacted)",
+        text: `{
+  "UserId": "<ROLE_ID>:GitHubActions",
+  "Account": "<AWS_ACCOUNT_ID>",
+  "Arn": "arn:aws:sts::<AWS_ACCOUNT_ID>:assumed-role/github-oidc-security-test/GitHubActions"
+}`,
+      },
+      {
+        type: "p",
+        text: "The branch AWS had rejected was now able to assume the role. I hadn't changed the workflow or attached any permissions policies to the IAM role. The change was entirely in the trust policy.",
+      },
+      {
+        type: "p",
+        text: "This didn't demonstrate an unauthorised production deployment or access to protected infrastructure. The test role had no attached permissions policies, and get-caller-identity only confirmed which AWS identity the workflow was using.",
+      },
+      {
+        type: "p",
+        text: "What the experiment established was narrower and more useful: changing the subject restriction changed which GitHub branch contexts could obtain credentials for that role.",
+      },
+      {
+        type: "p",
+        text: "Afterwards, I restored the exact main restriction and verified the trust policy directly in AWS.",
       },
 
       {
         type: "heading",
-        text: "The security improvement that actually matters",
+        text: "What I'd check in a production deployment",
       },
       {
         type: "p",
-        text: "OIDC removes an important class of credential-management risk.",
+        text: "If I were reviewing an OIDC-enabled deployment pipeline, I'd examine three areas.",
       },
       {
         type: "p",
-        text: "It does not remove the need to think about who can edit workflows, which execution contexts may request tokens, how AWS evaluates identity claims and what permissions the resulting session receives.",
+        text: "First, the IAM trust policy. I'd check the actual subject claims, the audience condition and whether any wildcards allow execution contexts beyond those intended.",
       },
       {
         type: "p",
-        text: "A deployment pipeline is only as secure as the combined trust boundary between its source-control system, identity provider and cloud environment.",
+        text: "Second, the role's permissions. I'd look at which AWS actions are allowed, which resources they apply to and whether the workflow needs every permission it has.",
       },
       {
         type: "p",
-        text: "The question I would ask during a pipeline review is not simply whether access keys have been removed.",
+        text: "Third, the GitHub repository. I'd check who can modify privileged workflows, whether deployment branches are protected and what third-party or untrusted code can execute in jobs with AWS access.",
       },
       {
         type: "p",
-        text: "I would ask whether a workflow that should not deploy can nevertheless satisfy the role's trust conditions, and whether anyone has tested that it cannot.",
+        text: "For more sensitive deployments, I'd also consider whether trusting a branch is sufficiently precise.",
       },
       {
-        type: "note",
-        text: "A secure pipeline does not merely use short-lived credentials. It makes the identities allowed to receive those credentials deliberately narrow and verifiable.",
+        type: "p",
+        text: "GitHub provides deployment environments and additional OIDC claims, including job_workflow_ref, which identifies the workflow involved in execution.",
+      },
+      {
+        type: "p",
+        text: "With a suitable customised OIDC subject configuration, workflow identity can form part of the conditions AWS evaluates. GitHub environment protection rules can also provide an additional deployment approval boundary.",
+      },
+      {
+        type: "p",
+        text: "Those controls are worth considering when multiple workflows share a repository but only certain ones should deploy to production.",
+      },
+
+      {
+        type: "heading",
+        text: "Final thoughts",
+      },
+      {
+        type: "p",
+        text: "Using OIDC is a sensible improvement over storing long-lived AWS credentials in GitHub Actions. But I wouldn't treat the absence of static keys as evidence that the entire pipeline is secure.",
+      },
+      {
+        type: "p",
+        text: "The trust policy still determines which GitHub identities can obtain temporary credentials, and the role's permissions determine what those credentials can do.",
+      },
+      {
+        type: "p",
+        text: "In my experiment, changing one trust condition was enough to turn a rejected branch into an authenticated one. AWS hadn't made a mistake. It was following the policy I'd given it.",
+      },
+      {
+        type: "p",
+        text: "That's what I'd want to verify in a real deployment: whether the policy grants access to exactly the workflows that are supposed to have it.",
       },
     ],
   },
@@ -1512,12 +1364,12 @@ function ArticleBlock({ block }: { block: Block }) {
 
     case "code":
       return (
-        <div className="!my-8 overflow-hidden rounded-lg border border-neutral-800 bg-[#111111]">
+        <div className="!my-8 min-w-0 max-w-full overflow-hidden rounded-lg border border-neutral-800 bg-[#111111]">
           <div className="border-b border-neutral-800 px-5 py-3 text-xs uppercase tracking-wider text-neutral-500">
             {block.language}
           </div>
 
-          <pre className="overflow-x-auto p-5 text-[13px] leading-7 text-neutral-300">
+          <pre className="max-w-full overflow-x-auto p-4 text-xs leading-6 text-neutral-300 sm:p-5 sm:text-[13px] sm:leading-7">
             <code>{block.text}</code>
           </pre>
         </div>
@@ -1569,7 +1421,7 @@ export default async function WriteupPage({
   );
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-3xl px-6 sm:px-10">
+    <main className="mx-auto min-h-screen w-full min-w-0 max-w-3xl px-4 sm:px-10">
 
       {/* Navigation */}
       <header className="flex flex-wrap items-center justify-between gap-5 border-b border-neutral-800 py-8">
@@ -1609,7 +1461,7 @@ export default async function WriteupPage({
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl font-semibold leading-[1.15] tracking-tight text-white sm:text-5xl">
+        <h1 className="break-words text-3xl font-semibold leading-[1.15] tracking-tight text-white sm:text-5xl">
           {article.title}
         </h1>
 
